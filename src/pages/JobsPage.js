@@ -21,12 +21,22 @@ const JobsPage = () => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await JobAPI.getAllJobs();
       setJobs(data);
-      setError(null);
     } catch (err) {
-      setError('Failed to fetch job applications');
-      console.error(err);
+      console.error('Failed to fetch jobs:', err);
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setError(`Server error: ${err.response.status} - ${err.response.data.message || 'Unknown error'}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response from server. Please check your connection and try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -40,12 +50,13 @@ const JobsPage = () => {
   const handleAddJob = async (jobData) => {
     try {
       setLoading(true);
+      setError(null);
       await JobAPI.createJob(jobData);
       fetchJobs();
       setShowForm(false);
     } catch (err) {
-      setError('Failed to add job application');
-      console.error(err);
+      console.error('Failed to add job application:', err);
+      setError('Failed to add job application. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -55,13 +66,14 @@ const JobsPage = () => {
   const handleUpdateJob = async (jobData) => {
     try {
       setLoading(true);
+      setError(null);
       await JobAPI.updateJob(currentJob._id, jobData);
       fetchJobs();
       setShowForm(false);
       setCurrentJob(null);
     } catch (err) {
-      setError('Failed to update job application');
-      console.error(err);
+      console.error('Failed to update job application:', err);
+      setError('Failed to update job application. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -72,11 +84,12 @@ const JobsPage = () => {
     if (window.confirm('Are you sure you want to delete this job application?')) {
       try {
         setLoading(true);
+        setError(null);
         await JobAPI.deleteJob(jobId);
         fetchJobs();
       } catch (err) {
-        setError('Failed to delete job application');
-        console.error(err);
+        console.error('Failed to delete job application:', err);
+        setError('Failed to delete job application. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -135,6 +148,11 @@ const JobsPage = () => {
     }
   });
 
+  // Clear error message
+  const dismissError = () => {
+    setError(null);
+  };
+
   return (
     <div className="jobs-page">
       <header className="jobs-header">
@@ -150,7 +168,12 @@ const JobsPage = () => {
         </button>
       </header>
 
-      {error && <div className="error-alert">{error}</div>}
+      {error && (
+        <div className="error-alert">
+          <span>{error}</span>
+          <button className="dismiss-error" onClick={dismissError}>×</button>
+        </div>
+      )}
 
       <FilterBar filters={filters} setFilters={setFilters} />
 
@@ -163,7 +186,10 @@ const JobsPage = () => {
       ) : (
         <>
           {loading ? (
-            <div className="loading">Loading job applications...</div>
+            <div className="loading">
+              <div className="loader"></div>
+              <p>Loading job applications...</p>
+            </div>
           ) : filteredJobs.length > 0 ? (
             <div className="jobs-grid">
               {filteredJobs.map((job) => (
@@ -178,6 +204,15 @@ const JobsPage = () => {
           ) : (
             <div className="no-jobs">
               <p>No job applications found. Add your first job application!</p>
+              <button 
+                className="empty-state-btn"
+                onClick={() => {
+                  setCurrentJob(null);
+                  setShowForm(true);
+                }}
+              >
+                Add Job Application
+              </button>
             </div>
           )}
         </>
